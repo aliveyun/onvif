@@ -235,8 +235,8 @@ func (dev *Device) ControlPTZ( control_type int32,  control bool,speed float64) 
 	case PTZ_ZOOMOUT:
         ptzRelReq.Translation.Zoom.X = -speed;
 	}
-	res, err := dev.Dev.CallMethod(ptzRelReq)
-	fmt.Println("11111111111",ptzRelReq ,res,err)
+	_, err := dev.Dev.CallMethod(ptzRelReq)
+	//fmt.Println("11111111111",ptzRelReq ,res,err)
 
-	return nil
+	return err
 }
