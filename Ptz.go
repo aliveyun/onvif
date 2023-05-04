@@ -42,18 +42,19 @@ type Device struct {
 type PtzType int32
 
 const (
-	PTZ_UP    PtzType = 0
-	PTZ_DOWN    PtzType = 1
-	PTZ_LEFT    PtzType = 2
-	PTZ_LEFTUP    PtzType = 3
-	PTZ_LEFTDOWN    PtzType = 4
+	PTZ_STOP    PtzType = 0
+	PTZ_UP    PtzType = 1
+	PTZ_DOWN    PtzType = 2
+	PTZ_LEFT    PtzType = 3
+	PTZ_LEFTUP    PtzType = 4
+	PTZ_LEFTDOWN    PtzType = 5
 	
-	PTZ_RIGHT    PtzType = 5
-	PTZ_RIGHTUP    PtzType = 6
-	PTZ_RIGHTDOWN    PtzType = 7
+	PTZ_RIGHT    PtzType = 6
+	PTZ_RIGHTUP    PtzType = 7
+	PTZ_RIGHTDOWN    PtzType = 8
 
-	PTZ_ZOOMIN   PtzType = 8
-	PTZ_ZOOMOUT  PtzType = 9
+	PTZ_ZOOMIN   PtzType = 9
+	PTZ_ZOOMOUT  PtzType = 10
 	
 )
 
@@ -208,6 +209,8 @@ func (dev *Device) ControlPTZ( control_type int32,  control bool,speed float64) 
 	}
 
 	switch PtzType(control_type) {
+	case PTZ_STOP:
+		return dev.ptzStop()
 	case PTZ_UP:
 		ptzRelReq.Translation.PanTilt.Y=-speed
 		//ptzRelReq.Speed.PanTilt.Y=speed
@@ -237,6 +240,15 @@ func (dev *Device) ControlPTZ( control_type int32,  control bool,speed float64) 
 	}
 	_, err := dev.Dev.CallMethod(ptzRelReq)
 	//fmt.Println("11111111111",ptzRelReq ,res,err)
+
+	return err
+}
+
+func (dev *Device)ptzStop() error {
+	ptzRelReq := ptz.Stop{
+		ProfileToken: vif.ReferenceToken(dev.onvifTokens[0]),
+	}
+	_, err := dev.Dev.CallMethod(ptzRelReq)
 
 	return err
 }
