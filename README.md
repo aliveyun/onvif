@@ -2,6 +2,18 @@
 
 Enhanced and Improved from: [goonvif](https://github.com/yakovlevdmv/goonvif)
 http://www.8fe.com/jiaocheng/7439.html
+
+3. 备注
+需要特别注意：
+1、import use-go/onvif 相关包的时候，一定要加上别名。
+2、摄像头的地址一定要可以ping通，并且username和password不是登陆摄像头管理后台的用户，而是协议用户：
+
+海康摄像头的配置路径：管理后台 -> 配置 -> 网络 -> 高级配置 -> 集成协议
+
+
+ - interfacename: WLAN  # 网卡名称 或者"以太网" "eth0"等，使用ipconfig 或者 ifconfig 查看网卡名称   以太网 2
+
+
 Onvif云台控制
 云台控制说明：
 
@@ -11,21 +23,6 @@ y为负数，表示下转，y为正数，表示上转。
 z为正数，表示拉近，z为负数，表示拉远。
 通过x和y的组合，来实现云台的控制。
 通过z的组合，来实现焦距控制。
-func main() {
-		//Getting an camera instance
-		dev, err := onvif.NewDevice(onvif.DeviceParams{
-			Xaddr:      "192.168.138.120:80",
-			Username:   "admin",
-			Password:   "abc12345",
-			HttpClient: new(http.Client),
-		})
-
- fmt.Println(dev ,err)
- //dev.PtzUp()
- dev.ControlPTZ(3,true,0.08)
- //time.Sleep(5 * time.Second)
-}
-
 
 void frmPtz::moveAbsolute()
 {
