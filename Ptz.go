@@ -5,6 +5,7 @@ import (
 	//"fmt"
 	//"log"
 	//"fmt"
+	//"os"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -377,4 +378,44 @@ func  DiscoveryDevice(){
 	bys, _ := json.Marshal(hosts)
 	fmt.Println("qw",bys)
 	
+}
+
+func (dev *Device) GetSnapshotUri() (string, error) {
+	fmt.Println("GetSnapshotUri")
+    profiles := media.GetSnapshotUri{
+		ProfileToken: vif.ReferenceToken(dev.onvifTokens[0]),
+	}
+
+
+	profilesRes, err := dev.Dev.CallMethod(profiles)
+	if err != nil {
+		fmt.Println("GetStreamUri",err)
+		return "", err
+	}
+	b, err := ioutil.ReadAll(profilesRes.Body)
+	if err != nil {
+		return "", fmt.Errorf("error:%s", err.Error())
+	}
+	fmt.Println("444",profilesRes)
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(b); err != nil {
+		return "", fmt.Errorf("error:%s", err.Error())
+	}
+
+	endpoints := doc.Root().FindElements("./Body/GetSnapshotUriResponse/MediaUri/Uri")
+	if len(endpoints) == 0 {
+		fmt.Println("ss")
+		return "", fmt.Errorf("error:%s", "no media uri")
+	}
+	mediaUri := endpoints[0].Text()
+	if !strings.Contains(mediaUri, "http") {
+		fmt.Println("mediaUri:", mediaUri)
+		return "", fmt.Errorf("error:%s", "media uri is not rtsp")
+	}
+	if !strings.Contains(mediaUri, "@") && dev.parms.Username != "" {
+		//如果返回的rtsp里没有账号密码，则自己拼接
+		mediaUri = strings.Replace(mediaUri, "//", fmt.Sprintf("//%s:%s@", dev.parms.Username, dev.parms.Password), 1)
+	}
+	fmt.Printf("保存图像失败： %v\n", endpoints,mediaUri)
+   return "", err
 }
