@@ -5,30 +5,36 @@ import (
 	//"fmt"
 	//"log"
 	//"fmt"
-	//"os"
+	"os"
+	//"io"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"context"
 	"path"
 	"regexp"
-	goonvif "github.com/use-go/onvif"
 
+	//"crypto/md5"
+	//"encoding/base64"
+	goonvif "github.com/use-go/onvif"
+	//"time"
 	//"github.com/use-go/onvif/device"
 	//sdk "github.com/use-go/onvif/sdk/device"
 	//"github.com/use-go/onvif/sdk/ptz"
+	vif "github.com/use-go/onvif/xsd/onvif"
 	"io/ioutil"
 	"strings"
-	vif "github.com/use-go/onvif/xsd/onvif"
 
 	"github.com/beevik/etree"
+	"github.com/use-go/onvif/device"
 	"github.com/use-go/onvif/media"
 	"github.com/use-go/onvif/ptz"
-	"github.com/use-go/onvif/xsd"
-	"github.com/use-go/onvif/device"
 	sdkdevice "github.com/use-go/onvif/sdk/device"
 	discover "github.com/use-go/onvif/ws-discovery"
+	"github.com/use-go/onvif/xsd"
+
+	"github.com/icholy/digest"
 )
 
 type DeviceParams struct {
@@ -42,7 +48,7 @@ type Device struct {
 	Dev         *goonvif.Device
 	onvifTokens map[int]string
 	videoTokens map[int]string
-	parms DeviceParams
+	parms       DeviceParams
 }
 
 //UP, DOWN, LEFT, RIGHT, UP_LEFT, DOWN_LEFT, UP_RIGHT, DOWN_RIGHT, STOP
@@ -69,12 +75,11 @@ func NewDevice(params DeviceParams) (*Device, error) {
 	dev := &Device{
 		onvifTokens: make(map[int]string),
 		videoTokens: make(map[int]string),
-		parms:DeviceParams{
-			Xaddr:      params.Xaddr,
-		Username:   params.Username,
-		Password:   params.Password,
+		parms: DeviceParams{
+			Xaddr:    params.Xaddr,
+			Username: params.Username,
+			Password: params.Password,
 		},
-
 	}
 	err := errors.New("")
 	dev.Dev, err = goonvif.NewDevice(goonvif.DeviceParams{
@@ -90,7 +95,7 @@ func NewDevice(params DeviceParams) (*Device, error) {
 	if err != nil {
 		return dev, err
 	}
-   fmt.Println("lll",profilesRes)
+	fmt.Println("lll", profilesRes)
 	b, err := ioutil.ReadAll(profilesRes.Body)
 	if err != nil {
 		return dev, err
@@ -116,11 +121,11 @@ func NewDevice(params DeviceParams) (*Device, error) {
 		v := res.FindElement("./VideoSourceConfiguration/SourceToken")
 		if v != nil {
 			dev.videoTokens[k] = v.Text()
-		
+
 		}
 
 	}
-	fmt.Println("2222222222", dev)
+	fmt.Println("NewDevice", dev)
 	return dev, err
 }
 
@@ -169,7 +174,7 @@ func (dev *Device) PtzUp() error {
 	}
 
 	res, err := dev.Dev.CallMethod(ptzRelReq)
-	fmt.Println("11111111111", ptzRelReq, res)
+	fmt.Println("PtzUp", ptzRelReq, res)
 	return err
 }
 
@@ -248,7 +253,7 @@ func (dev *Device) ControlPTZ(control_type int32, control bool, speed float64) e
 		ptzRelReq.Translation.Zoom.X = -speed
 	}
 	res, err := dev.Dev.CallMethod(ptzRelReq)
-	fmt.Println("11111111111", ptzRelReq, res, err)
+	fmt.Println("ControlPTZ", ptzRelReq, res, err)
 
 	return nil
 }
@@ -264,44 +269,45 @@ func (dev *Device) SearchDevice() error {
 
 	s, err := goonvif.GetAvailableDevicesAtSpecificEthernetInterface("以太网 2")
 
-	fmt.Printf("444444444444444444%v %v\n", err, s)
+	fmt.Printf("SearchDevice%v %v\n", err, s)
 	return nil
 }
+
 // GetDeviceInformation 读取设备基础信息
 // @author: Sen
 // @date  : 2023-03-09 16:36:16
 func (dev *Device) GetDeviceInformation(ctx context.Context) {
-    // 读取设备基础信息
-    getDeviceInformation := device.GetDeviceInformation{}
-    getDeviceInformationResponse, err := sdkdevice.Call_GetDeviceInformation(ctx, dev.Dev, getDeviceInformation)
-    if err != nil {
-        panic(err)
-    }
-    //HardwareId      string //固件ID/设备编号
-    //SerialNumber    string //设备序列号
-    //FirmwareVersion string //固件版本
-    //Model           string //设备类型
-    //Manufacturer    string //厂家信息
-    fmt.Println("getDeviceInformationResponse:")
-    fmt.Println(getDeviceInformationResponse)
+	// 读取设备基础信息
+	getDeviceInformation := device.GetDeviceInformation{}
+	getDeviceInformationResponse, err := sdkdevice.Call_GetDeviceInformation(ctx, dev.Dev, getDeviceInformation)
+	if err != nil {
+		panic(err)
+	}
+	//HardwareId      string //固件ID/设备编号
+	//SerialNumber    string //设备序列号
+	//FirmwareVersion string //固件版本
+	//Model           string //设备类型
+	//Manufacturer    string //厂家信息
+	
+	fmt.Println(getDeviceInformationResponse)
 }
 
 func (dev *Device) GetStreamUri() (string, error) {
 
-    profiles := media.GetStreamUri{
+	profiles := media.GetStreamUri{
 		ProfileToken: vif.ReferenceToken(dev.onvifTokens[0]),
 	}
 
 	profilesRes, err := dev.Dev.CallMethod(profiles)
 	if err != nil {
-		fmt.Println("GetStreamUri",err)
+		fmt.Println("GetStreamUri", err)
 		return "", err
 	}
 	b, err := ioutil.ReadAll(profilesRes.Body)
 	if err != nil {
 		return "", fmt.Errorf("error:%s", err.Error())
 	}
-	fmt.Println("444",profilesRes)
+	fmt.Println("444", profilesRes)
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(b); err != nil {
 		return "", fmt.Errorf("error:%s", err.Error())
@@ -312,7 +318,7 @@ func (dev *Device) GetStreamUri() (string, error) {
 		fmt.Println("ss")
 		return "", fmt.Errorf("error:%s", "no media uri")
 	}
-	fmt.Println("s1111s")
+
 	mediaUri := endpoints[0].Text()
 	if !strings.Contains(mediaUri, "rtsp") {
 		fmt.Println("mediaUri:", mediaUri)
@@ -322,8 +328,8 @@ func (dev *Device) GetStreamUri() (string, error) {
 		//如果返回的rtsp里没有账号密码，则自己拼接
 		mediaUri = strings.Replace(mediaUri, "//", fmt.Sprintf("//%s:%s@", dev.parms.Username, dev.parms.Password), 1)
 	}
-   fmt.Println("rtsp",mediaUri)
-   return "", err
+	fmt.Println("rtsp", mediaUri)
+	return "", err
 }
 
 type Host struct {
@@ -331,25 +337,24 @@ type Host struct {
 	Name string `json:"name"`
 }
 
-func  DiscoveryDevice(){
-	fmt.Println("123")
+func DiscoveryDevice() {
 	var hosts []*Host
-	interfaceName :="以太网 2"  //WLAN
+	interfaceName := "以太网 2" //WLAN
 	devices, err := discover.SendProbe(interfaceName, nil, []string{"dn:NetworkVideoTransmitter"}, map[string]string{"dn": "http://www.onvif.org/ver10/network/wsdl"})
 	if err != nil {
-		fmt.Println("SendProbe",err)
+		//fmt.Println("SendProbe", err)
 		return
 	}
-	fmt.Println("SendProbe",devices)
+	//fmt.Println("SendProbe", devices)
 	for _, j := range devices {
 		doc := etree.NewDocument()
 		if err := doc.ReadFromString(j); err != nil {
-			fmt.Println("devices",devices)
+			fmt.Println("devices", devices)
 		} else {
 
 			endpoints := doc.Root().FindElements("./Body/ProbeMatches/ProbeMatch/XAddrs")
 			scopes := doc.Root().FindElements("./Body/ProbeMatches/ProbeMatch/Scopes")
-			fmt.Println("endpoints",endpoints)
+			//fmt.Println("endpoints", endpoints)
 			flag := false
 
 			host := &Host{}
@@ -357,7 +362,7 @@ func  DiscoveryDevice(){
 			for _, xaddr := range endpoints {
 				xaddr := strings.Split(strings.Split(xaddr.Text(), " ")[0], "/")[2]
 				host.URL = xaddr
-				fmt.Println("host.xaddr ",xaddr)
+				fmt.Println("host.xaddr ", xaddr)
 			}
 			if flag {
 				break
@@ -366,7 +371,7 @@ func  DiscoveryDevice(){
 				re := regexp.MustCompile(`onvif:\/\/www\.onvif\.org\/name\/[A-Za-z0-9-]+`)
 				match := re.FindStringSubmatch(scope.Text())
 				host.Name = path.Base(match[0])
-				fmt.Println("host.Name ",host.Name )
+				fmt.Println("host.Name ", host.Name)
 			}
 
 			hosts = append(hosts, host)
@@ -376,27 +381,23 @@ func  DiscoveryDevice(){
 	}
 
 	bys, _ := json.Marshal(hosts)
-	fmt.Println("qw",bys)
-	
+	fmt.Println("qw", bys)
+
 }
 
 func (dev *Device) GetSnapshotUri() (string, error) {
-	fmt.Println("GetSnapshotUri")
-    profiles := media.GetSnapshotUri{
+	profiles := media.GetSnapshotUri{
 		ProfileToken: vif.ReferenceToken(dev.onvifTokens[0]),
 	}
 
-
 	profilesRes, err := dev.Dev.CallMethod(profiles)
 	if err != nil {
-		fmt.Println("GetStreamUri",err)
 		return "", err
 	}
 	b, err := ioutil.ReadAll(profilesRes.Body)
 	if err != nil {
 		return "", fmt.Errorf("error:%s", err.Error())
 	}
-	fmt.Println("444",profilesRes)
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(b); err != nil {
 		return "", fmt.Errorf("error:%s", err.Error())
@@ -404,18 +405,48 @@ func (dev *Device) GetSnapshotUri() (string, error) {
 
 	endpoints := doc.Root().FindElements("./Body/GetSnapshotUriResponse/MediaUri/Uri")
 	if len(endpoints) == 0 {
-		fmt.Println("ss")
 		return "", fmt.Errorf("error:%s", "no media uri")
 	}
 	mediaUri := endpoints[0].Text()
 	if !strings.Contains(mediaUri, "http") {
-		fmt.Println("mediaUri:", mediaUri)
+		//fmt.Println("mediaUri:", mediaUri)
 		return "", fmt.Errorf("error:%s", "media uri is not rtsp")
 	}
-	if !strings.Contains(mediaUri, "@") && dev.parms.Username != "" {
-		//如果返回的rtsp里没有账号密码，则自己拼接
-		mediaUri = strings.Replace(mediaUri, "//", fmt.Sprintf("//%s:%s@", dev.parms.Username, dev.parms.Password), 1)
+	//fmt.Printf("保存图像0： %v\n", mediaUri)
+	// if !strings.Contains(mediaUri, "@") && dev.parms.Username != "" {
+	// 	//如果返回的rtsp里没有账号密码，则自己拼接
+	// 	mediaUri = strings.Replace(mediaUri, "//", fmt.Sprintf("//%s:%s@", dev.parms.Username, dev.parms.Password), 1)
+	// }
+	// fmt.Printf("保存图像： %v\n", mediaUri)
+	return mediaUri, nil
+}
+
+func (dev *Device) GetDownSnapshot(url, path string) error {
+	client := &http.Client{
+		Transport: &digest.Transport{
+			Username: dev.parms.Username,
+			Password: dev.parms.Password,
+		},
 	}
-	fmt.Printf("保存图像失败： %v\n", endpoints,mediaUri)
-   return "", err
+	response, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	// 将图像保存到文件
+	imageData, _ := ioutil.ReadAll(response.Body)
+	file, err := os.Create(path)
+	if err != nil {
+		//fmt.Printf("保存图像失败： %v\n", err)
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.Write(imageData)
+	if err != nil {
+		//fmt.Printf("保存图像失败： %v\n", err)
+		return err
+	}
+
+	return nil
 }
