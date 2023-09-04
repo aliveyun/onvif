@@ -441,7 +441,6 @@ func (dev *Device) GetDownSnapshot(url, path string) error {
 		return err
 	}
 	defer file.Close()
-
 	_, err = file.Write(imageData)
 	if err != nil {
 		//fmt.Printf("保存图像失败： %v\n", err)
@@ -449,4 +448,21 @@ func (dev *Device) GetDownSnapshot(url, path string) error {
 	}
 
 	return nil
+}
+
+func (dev *Device) GetDownSnapshotData(url string) ([]byte, error) {
+	client := &http.Client{
+		Transport: &digest.Transport{
+			Username: dev.parms.Username,
+			Password: dev.parms.Password,
+		},
+	}
+	response, err := client.Get(url)
+	if err != nil {
+		return nil ,err
+	}
+	defer response.Body.Close()
+	// 将图像保存到文件
+	return ioutil.ReadAll(response.Body)
+
 }
